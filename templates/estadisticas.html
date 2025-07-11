@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Estadísticas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container mt-5">
+    <h1 class="mb-4">📊 Estadísticas de Reportes</h1>
+    <a href="/" class="btn btn-secondary mb-4">← Volver</a>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Total de reportes registrados</h5>
+            <p class="card-text display-6">{{ total }}</p>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title">Reportes por Estado</h5>
+            <ul class="list-group">
+                {% for estado, cantidad in por_estado %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ estado }}
+                    <span class="badge bg-primary rounded-pill">{{ cantidad }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Top 5 Oficinas con más reportes</h5>
+            <ul class="list-group">
+                {% for oficina, cantidad in por_oficina %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ oficina.capitalize() }}
+                    <span class="badge bg-info rounded-pill">{{ cantidad }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Reportes por Piso</h5>
+        <ul class="list-group">
+            {% for piso, cantidad in por_piso %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Piso {{ piso }}
+                <span class="badge bg-success rounded-pill">{{ cantidad }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>

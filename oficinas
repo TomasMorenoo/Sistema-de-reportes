@@ -1,0 +1,27 @@
+import sqlite3
+
+conn = sqlite3.connect('datosReportes.db')
+cursor = conn.cursor()
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS oficinas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT UNIQUE NOT NULL
+)
+''')
+
+print("Ingresá las oficinas una por una. Para terminar, deja el campo vacío y presioná Enter.")
+
+while True:
+    oficina = input("Nombre de la oficina: ").strip()
+    if oficina == "":
+        break
+    try:
+        cursor.execute("INSERT INTO oficinas (nombre) VALUES (?)", (oficina,))
+        conn.commit()
+        print(f"Oficina '{oficina}' agregada.")
+    except sqlite3.IntegrityError:
+        print(f"La oficina '{oficina}' ya existe, no se agregó.")
+
+conn.close()
+print("Carga finalizada.")

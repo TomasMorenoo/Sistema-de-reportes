@@ -1,0 +1,21 @@
+import sqlite3
+
+conn = sqlite3.connect('datosReportes.db')
+cursor = conn.cursor()
+
+cursor.execute('''
+CREATE TABLE IF NOT EXISTS datos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    piso TEXT,
+    oficina TEXT,
+    quien TEXT,
+    razon TEXT,
+    estado TEXT,
+    fecha TEXT
+)
+''')
+
+conn.commit()
+conn.close()
+
+print("✅ Tabla 'datos' creada (o ya existía).")

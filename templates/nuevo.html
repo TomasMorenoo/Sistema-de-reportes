@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Nuevo Reporte</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+</head>
+<body>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+
+            <div class="card shadow-lg">
+                <div class="card-header bg-primary text-white text-center">
+                    <h3 class="mb-0">📝 Cargar Nuevo Reporte</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="piso" class="form-label">Piso</label>
+                            <select name="piso" class="form-select mb-2" required>
+                                <option value="" disabled selected>Seleccionar piso</option>
+                                {% for i in range(-3, 5) %}
+                                    <option value="{{ i }}">{{ i }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="oficina">Oficina</label>
+                            <select class="form-select mb-3" id="oficina" name="oficina" required>
+                                {% for oficina in oficinas %}
+                                <option value="{{ oficina }}">{{ oficina }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="quien" class="form-label">Quién reporta</label>
+                            <input type="text" name="quien" id="quien" class="form-control" placeholder="Ej: Juan Pérez" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="razon" class="form-label">Razón del reporte</label>
+                            <input type="text" name="razon" id="razon" class="form-control" placeholder="Ej: PC no enciende" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select name="estado" id="estado" class="form-select" required>
+                                <option value="" disabled selected>Seleccionar estado</option>
+                                <option value="pendiente">Pendiente</option>
+                                <option value="en proceso">En proceso</option>
+                                <option value="resuelto">Resuelto</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="/" class="btn btn-secondary">← Cancelar</a>
+                            <button type="submit" class="btn btn-success">✅ Guardar Reporte</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+
+<script>
+$(document).ready(function() {
+    $('#oficina').select2({
+        placeholder: "Seleccioná una oficina",
+        allowClear: true
+    });
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
