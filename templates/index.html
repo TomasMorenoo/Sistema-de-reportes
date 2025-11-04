@@ -1,72 +1,507 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Reportes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
+{% extends "base.html" %}
 
-<!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="/">Sistema de Reportes</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+{% block title %}Inicio - Sistema de Reportes{% endblock %}
 
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item me-2">
-                    <a class="btn btn-success" href="/nuevo">+ Nuevo Reporte</a>
-                </li>
-                <li class="nav-item me-2">
-                    <a class="btn btn-primary" href="/estadisticas">📊 Ver Estadísticas</a>
-                </li>
-                <li class="nav-item me-2">
-                    <a class="btn btn-secondary text-dark" href="/excel">📥 Generar Excel</a>
-                </li>
-                <li class="nav-item me-2">
-                    <a class="btn btn-warning text-dark" href="/actualizar">🛠️ Actualizar Estado</a>
-                </li>
-            </ul>
+{% block extra_styles %}
+.badge-estado {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+}
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+    transition: background-color 0.2s;
+}
+.btn-delete {
+    transition: transform 0.2s;
+}
+.btn-delete:hover {
+    transform: scale(1.1);
+}
+.persona-row-modal {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.persona-row-modal select {
+    flex: 1;
+}
+.btn-remove-persona-modal {
+    width: 40px;
+    height: 38px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#personas-container-modal .persona-row-modal:first-child .btn-remove-persona-modal {
+    visibility: hidden;
+}
+{% endblock %}
+
+{% block content %}
+<!-- Filtros y Búsqueda -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('index') }}" id="filtrosForm" class="row g-3">
+            <div class="col-md-3">
+                <label for="busqueda" class="form-label">
+                    <i class="fas fa-search"></i> Buscar
+                </label>
+                <input type="text" class="form-control" id="busqueda" name="busqueda" 
+                       placeholder="Oficina, persona o razón..." value="{{ busqueda }}">
+            </div>
+            <div class="col-md-2">
+                <label for="estado" class="form-label">
+                    <i class="fas fa-filter"></i> Estado
+                </label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="pendiente" {% if filtro_estado == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                    <option value="en proceso" {% if filtro_estado == 'en proceso' %}selected{% endif %}>En Proceso</option>
+                    <option value="resuelto" {% if filtro_estado == 'resuelto' %}selected{% endif %}>Resuelto</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="piso" class="form-label">
+                    <i class="fas fa-building"></i> Piso
+                </label>
+                <select class="form-select" id="piso" name="piso">
+                    <option value="">Todos</option>
+                    {% for p in pisos_disponibles %}
+                    <option value="{{ p }}" {% if filtro_piso|string == p|string %}selected{% endif %}>Piso {{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="limite" class="form-label">
+                    <i class="fas fa-list-ol"></i> Por página
+                </label>
+                <select class="form-select" id="limite" name="limite" onchange="this.form.submit()">
+                    <option value="50" {% if limite == 50 %}selected{% endif %}>50 reportes</option>
+                    <option value="100" {% if limite == 100 %}selected{% endif %}>100 reportes</option>
+                    <option value="todos" {% if limite == 'todos' %}selected{% endif %}>Todos</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" title="Aplicar filtros">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary" title="Limpiar filtros">
+                    <i class="fas fa-redo"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        <i class="fas fa-list"></i> Todos los Reportes
+        <span id="actualizacion-indicator" class="badge bg-success ms-2" style="font-size: 0.7rem; display: none;">
+            <i class="fas fa-sync-alt fa-spin"></i> Actualizando...
+        </span>
+    </h2>
+    <div class="d-flex gap-2 align-items-center">
+        <!-- Navegación de páginas -->
+        {% if total_paginas > 1 %}
+        <div class="btn-group" role="group">
+            <a href="?busqueda={{ busqueda }}&estado={{ filtro_estado }}&piso={{ filtro_piso }}&limite={{ limite }}&pagina={{ pagina_actual - 1 }}" 
+               class="btn btn-outline-primary btn-sm {% if pagina_actual == 1 %}disabled{% endif %}"
+               {% if pagina_actual == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled>
+                Página {{ pagina_actual }} de {{ total_paginas }}
+            </button>
+            <a href="?busqueda={{ busqueda }}&estado={{ filtro_estado }}&piso={{ filtro_piso }}&limite={{ limite }}&pagina={{ pagina_actual + 1 }}" 
+               class="btn btn-outline-primary btn-sm {% if pagina_actual == total_paginas %}disabled{% endif %}"
+               {% if pagina_actual == total_paginas %}tabindex="-1" aria-disabled="true"{% endif %}>
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </div>
+        {% endif %}
+        
+        <span class="badge bg-info text-dark" style="font-size: 1rem;">
+            Total: {{ total_reportes }}
+        </span>
+        
+        <!-- Toggle de actualización automática -->
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+            <label class="form-check-label" for="autoRefreshToggle" style="font-size: 0.9rem;">
+                <i class="fas fa-sync-alt"></i> Auto
+            </label>
         </div>
     </div>
-</nav>
+</div>
 
-<!-- CONTENIDO -->
-<div class="container">
-    <h2 class="mb-4">Todos los Reportes</h2>
-    <table class="table table-striped table-bordered align-middle">
+<div class="table-responsive">
+    <table class="table table-striped table-bordered table-hover align-middle">
         <thead class="table-dark">
             <tr>
-                <th>ID</th>
-                <th>Piso</th>
-                <th>Oficina</th>
-                <th>Quién</th>
-                <th>Razón</th>
-                <th>Estado</th>
-                <th>Fecha</th>
+                <th style="width: 5%;">ID</th>
+                <th style="width: 7%;">Piso</th>
+                <th style="width: 12%;">Oficina</th>
+                <th style="width: 12%;">Quién</th>
+                <th style="width: 28%;">Razón</th>
+                <th style="width: 10%;">Estado</th>
+                <th style="width: 10%;">Fecha</th>
+                <th style="width: 12%;">Resuelto por</th>
+                <th style="width: 8%;">Acciones</th>
             </tr>
         </thead>
         <tbody>
-            {% for r in reportes %}
-            <tr>
-                <td>{{ r[0] }}</td>
-                <td>{{ r[1] }}</td>
-                <td>{{ r[2] }}</td>
-                <td>{{ r[3] }}</td>
-                <td>{{ r[4] }}</td>
-                <td>{{ r[5] }}</td>
-                <td>{{ r[6] }}</td>
-            </tr>
-            {% endfor %}
+            {% if reportes %}
+                {% for r in reportes %}
+                <tr>
+                    <td class="text-center">
+                        <strong>#{{ r[0] }}</strong>
+                        {% if r[8] and r[8] > 0 %}
+                            <span class="badge bg-info rounded-pill ms-1" title="{{ r[8] }} comentario(s)">
+                                <i class="fas fa-comment"></i> {{ r[8] }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">{{ r[1] }}</td>
+                    <td>{{ r[2] }}</td>
+                    <td>{{ r[3] }}</td>
+                    <td>{{ r[4] }}</td>
+                    <td class="text-center">
+                        {% if r[5] == 'resuelto' %}
+                            <span class="badge bg-success badge-estado">
+                                <i class="fas fa-check-circle"></i> Resuelto
+                            </span>
+                        {% elif r[5] == 'en proceso' %}
+                            <span class="badge bg-warning text-dark badge-estado">
+                                <i class="fas fa-hourglass-half"></i> En Proceso
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger badge-estado">
+                                <i class="fas fa-clock"></i> Pendiente
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center"><small>{{ r[6] }}</small></td>
+                    <td>
+                        {% if r[7] %}
+                            <small class="text-muted">{{ r[7] }}</small>
+                        {% else %}
+                            <small class="text-muted">-</small>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="/editar/{{ r[0] }}">
+                                        <i class="fas fa-eye text-primary"></i> Ver Reporte
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="/editar/{{ r[0] }}">
+                                        <i class="fas fa-edit text-warning"></i> Editar
+                                    </a>
+                                </li>
+                                {% if r[5] in ['pendiente', 'en proceso'] %}
+                                <li>
+                                    <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalResolverRapido{{ r[0] }}">
+                                        <i class="fas fa-check-circle text-success"></i> Marcar Resuelto
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form action="{{ url_for('eliminar_reporte', id=r[0]) }}" method="POST" 
+                                          onsubmit="return confirm('¿Estás seguro de eliminar el reporte #{{ r[0] }}?\n\nOficina: {{ r[2] }}\nQuién: {{ r[3] }}');">
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="fas fa-trash-alt"></i> Eliminar
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Modal para resolver rápido desde index -->
+                {% if r[5] in ['pendiente', 'en proceso'] %}
+                <div class="modal fade" id="modalResolverRapido{{ r[0] }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-check-circle"></i> Marcar como Resuelto - #{{ r[0] }}
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="/resolver_rapido" class="form-resolver-rapido">
+                                <div class="modal-body">
+                                    <input type="hidden" name="id_reporte" value="{{ r[0] }}">
+                                    
+                                    <div class="mb-3">
+                                        <p><strong>Oficina:</strong> {{ r[2] }}</p>
+                                        <p><strong>Razón:</strong> {{ r[4] }}</p>
+                                    </div>
+
+                                    <hr>
+
+                                    <label class="form-label"><strong>¿Quién resolvió?</strong></label>
+                                    <div class="personas-container-modal mb-3" id="personas-container-modal-{{ r[0] }}">
+                                        <div class="persona-row-modal">
+                                            <select class="form-select persona-select-modal">
+                                                <option value="">Seleccionar persona</option>
+                                                <option value="Tomas">Tomas</option>
+                                                <option value="Chloe">Chloe</option>
+                                                <option value="Nahuel">Nahuel</option>
+                                                <option value="Marcelo">Marcelo</option>
+                                                <option value="Adrian">Adrian</option>
+                                                <option value="Norela">Norela</option>
+                                            </select>
+                                            <button type="button" class="btn btn-danger btn-remove-persona-modal">
+                                                <i class="fas fa-minus"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-success btn-sm btn-add-persona-modal" data-container-id="personas-container-modal-{{ r[0] }}">
+                                        <i class="fas fa-plus"></i> Agregar otra persona
+                                    </button>
+
+                                    <input type="hidden" name="resuelto_por" class="resuelto-por-hidden-modal">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-check"></i> Confirmar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p class="mb-0">No hay reportes registrados</p>
+                        <a href="{{ url_for('nuevo_reporte') }}" class="btn btn-success mt-2">
+                            <i class="fas fa-plus"></i> Crear primer reporte
+                        </a>
+                    </td>
+                </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Navegación de páginas inferior -->
+{% if total_paginas > 1 %}
+<div class="d-flex justify-content-center mt-4">
+    <div class="btn-group" role="group">
+        <a href="?busqueda={{ busqueda }}&estado={{ filtro_estado }}&piso={{ filtro_piso }}&limite={{ limite }}&pagina={{ pagina_actual - 1 }}" 
+           class="btn btn-primary {% if pagina_actual == 1 %}disabled{% endif %}"
+           {% if pagina_actual == 1 %}tabindex="-1" aria-disabled="true"{% endif %}>
+            <i class="fas fa-chevron-left"></i> Anterior
+        </a>
+        <button type="button" class="btn btn-primary" disabled>
+            Página {{ pagina_actual }} de {{ total_paginas }}
+        </button>
+        <a href="?busqueda={{ busqueda }}&estado={{ filtro_estado }}&piso={{ filtro_piso }}&limite={{ limite }}&pagina={{ pagina_actual + 1 }}" 
+           class="btn btn-primary {% if pagina_actual == total_paginas %}disabled{% endif %}"
+           {% if pagina_actual == total_paginas %}tabindex="-1" aria-disabled="true"{% endif %}>
+            Siguiente <i class="fas fa-chevron-right"></i>
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
 
-</body>
-</html>
+{% block extra_js_libs %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Funciones para modales de resolución rápida (SIN Select2)
+    function agregarPersonaModal(containerId) {
+        const nuevaFila = `
+            <div class="persona-row-modal">
+                <select class="form-select persona-select-modal">
+                    <option value="">Seleccionar persona</option>
+                    <option value="Tomas">Tomas</option>
+                    <option value="Chloe">Chloe</option>
+                    <option value="Nahuel">Nahuel</option>
+                    <option value="Marcelo">Marcelo</option>
+                    <option value="Adrian">Adrian</option>
+                    <option value="Norela">Norela</option>
+                </select>
+                <button type="button" class="btn btn-danger btn-remove-persona-modal">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+        `;
+        
+        $(`#${containerId}`).append(nuevaFila);
+    }
+
+    function eliminarPersonaModal(btn) {
+        const $container = $(btn).closest('.personas-container-modal');
+        if ($container.find('.persona-row-modal').length > 1) {
+            $(btn).closest('.persona-row-modal').remove();
+        }
+    }
+
+    $(document).ready(function() {
+        // Agregar persona en modal
+        $(document).on('click', '.btn-add-persona-modal', function() {
+            const containerId = $(this).data('container-id');
+            agregarPersonaModal(containerId);
+        });
+
+        // Eliminar persona en modal
+        $(document).on('click', '.btn-remove-persona-modal', function() {
+            eliminarPersonaModal(this);
+        });
+
+        // Interceptar el submit
+        $(document).on('submit', '.form-resolver-rapido', function(e) {
+            e.preventDefault();
+            
+            const $form = $(this);
+            const $modal = $form.closest('.modal');
+            const personas = [];
+            
+            // Recopilar personas seleccionadas
+            $modal.find('.persona-select-modal').each(function() {
+                const valor = $(this).val();
+                if (valor && valor !== '') {
+                    personas.push(valor);
+                }
+            });
+            
+            if (personas.length === 0) {
+                alert('Debes seleccionar al menos una persona que resolvió el reporte');
+                return false;
+            }
+            
+            // Buscar el ID del reporte - puede estar en el modal o en el formulario
+            let idReporte = $form.find('input[name="id_reporte"]').val();
+            
+            // Si no lo encuentra en el form, buscarlo en todo el modal
+            if (!idReporte) {
+                idReporte = $modal.find('input[name="id_reporte"]').val();
+            }
+            
+            const personasTexto = personas.join(', ');
+            
+            console.log('ID Reporte:', idReporte);
+            console.log('Personas:', personasTexto);
+            
+            if (!idReporte) {
+                alert('Error: No se pudo obtener el ID del reporte');
+                return false;
+            }
+            
+            // Crear FormData manualmente con los datos correctos
+            const formData = new FormData();
+            formData.append('id_reporte', idReporte);
+            formData.append('resuelto_por', personasTexto);
+            
+            console.log('FormData id_reporte:', formData.get('id_reporte'));
+            console.log('FormData resuelto_por:', formData.get('resuelto_por'));
+            
+            fetch('/resolver_rapido', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    alert('Error al marcar como resuelto');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error al enviar el formulario');
+            });
+        });
+
+        // ========================================
+        // SISTEMA DE ACTUALIZACIÓN AUTOMÁTICA
+        // ========================================
+        
+        let ultimoIdConocido = {{ reportes[0][0] if reportes else 0 }};
+        let totalConocido = {{ total_reportes }};
+        let autoRefreshEnabled = true;
+        let checkInterval;
+        
+        // Toggle de actualización automática
+        $('#autoRefreshToggle').on('change', function() {
+            autoRefreshEnabled = $(this).is(':checked');
+            if (autoRefreshEnabled) {
+                iniciarVerificacion();
+                console.log('Actualización automática activada');
+            } else {
+                detenerVerificacion();
+                console.log('Actualización automática desactivada');
+            }
+        });
+        
+        function verificarActualizaciones() {
+            if (!autoRefreshEnabled) return;
+            
+            fetch('/api/ultima_actualizacion')
+                .then(response => response.json())
+                .then(data => {
+                    // Verificar si hay cambios
+                    if (data.ultimo_id > ultimoIdConocido || data.total !== totalConocido) {
+                        console.log('Cambios detectados. Recargando página...');
+                        mostrarIndicadorActualizacion();
+                        
+                        // Recargar la página manteniendo los parámetros actuales
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al verificar actualizaciones:', error);
+                });
+        }
+        
+        function mostrarIndicadorActualizacion() {
+            $('#actualizacion-indicator').fadeIn(200);
+        }
+        
+        function iniciarVerificacion() {
+            // Verificar cada 5 minutos (300 segundos)
+            checkInterval = setInterval(verificarActualizaciones, 300000);
+        }
+        
+        function detenerVerificacion() {
+            if (checkInterval) {
+                clearInterval(checkInterval);
+            }
+        }
+        
+        // Iniciar verificación automática al cargar la página
+        iniciarVerificacion();
+        
+        // Detener verificación cuando el usuario abandona la página
+        $(window).on('beforeunload', function() {
+            detenerVerificacion();
+        });
+        
+        console.log('Sistema de actualización automática inicializado');
+    });
+</script>
+{% endblock %}

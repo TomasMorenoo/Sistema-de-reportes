@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Reporte #{{ reporte[0] }} - Sistema de Reportes{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block extra_styles %}
+.comentario-card {
+    border-left: 3px solid #0d6efd;
+    background-color: #f8f9fa;
+}
+.persona-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.persona-row select {
+    flex: 1;
+}
+.btn-remove-persona {
+    width: 40px;
+    height: 38px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#personas-container .persona-row:first-child .btn-remove-persona {
+    visibility: hidden;
+}
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Columna Izquierda: Formulario de Edición -->
+    <div class="col-md-7">
+        <div class="card shadow-lg">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="fas fa-edit"></i> Editar Reporte #{{ reporte[0] }}
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="formEditar">
+                    
+                    <!-- Piso -->
+                    <div class="mb-3">
+                        <label for="piso" class="form-label">Piso</label>
+                        <select name="piso" id="piso" class="form-select" required>
+                            {% for i in range(-3, 5) %}
+                                <option value="{{ i }}" {% if i == reporte[1] %}selected{% endif %}>{{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Oficina -->
+                    <div class="mb-3">
+                        <label for="oficina" class="form-label">Oficina</label>
+                        <select class="form-select" id="oficina" name="oficina" required>
+                            <option value="{{ reporte[2] }}" selected>{{ reporte[2] }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Quien reporta -->
+                    <div class="mb-3">
+                        <label for="quien" class="form-label">Quién reporta</label>
+                        <input type="text" name="quien" id="quien" class="form-control" value="{{ reporte[3] }}" required>
+                    </div>
+
+                    <!-- Razón -->
+                    <div class="mb-3">
+                        <label for="razon" class="form-label">Razón del reporte</label>
+                        <textarea name="razon" id="razon" class="form-control" rows="3" required>{{ reporte[4] }}</textarea>
+                    </div>
+
+                    <!-- Estado -->
+                    <div class="mb-3">
+                        <label for="estado" class="form-label">Estado</label>
+                        <select name="estado" id="estado" class="form-select" required>
+                            <option value="pendiente" {% if reporte[5] == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="en proceso" {% if reporte[5] == 'en proceso' %}selected{% endif %}>En proceso</option>
+                            <option value="resuelto" {% if reporte[5] == 'resuelto' %}selected{% endif %}>Resuelto</option>
+                        </select>
+                    </div>
+
+                    <!-- Resuelto por (dinámico cuando está resuelto) -->
+                    <div class="mb-3" id="resuelto-section" {% if reporte[5] != 'resuelto' %}style="display: none;"{% endif %}>
+                        <label class="form-label">Resuelto por</label>
+                        <div id="personas-container">
+                            {% if reporte[5] == 'resuelto' and reporte[7] %}
+                                {% set personas_lista = reporte[7].split(',') %}
+                                {% for persona in personas_lista %}
+                                <div class="persona-row">
+                                    <select class="form-select persona-select" data-placeholder="Seleccionar persona">
+                                        <option value=""></option>
+                                        <option value="Tomas" {% if persona.strip() == 'Tomas' %}selected{% endif %}>Tomas</option>
+                                        <option value="Norela" {% if persona.strip() == 'Norela' %}selected{% endif %}>Norela</option>
+                                        <option value="Nahuel" {% if persona.strip() == 'Nahuel' %}selected{% endif %}>Nahuel</option>
+                                        <option value="Adrian" {% if persona.strip() == 'Adrian' %}selected{% endif %}>Adrian</option>
+                                        <option value="Marcelo" {% if persona.strip() == 'Marcelo' %}selected{% endif %}>Marcelo</option>
+                                        <option value="Chloe" {% if persona.strip() == 'Chloe' %}selected{% endif %}>Chloe</option>
+                                    </select>
+                                    <button type="button" class="btn btn-danger btn-remove-persona">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="persona-row">
+                                    <select class="form-select persona-select" data-placeholder="Seleccionar persona">
+                                        <option value=""></option>
+                                        <option value="Tomas">Tomas</option>
+                                        <option value="Chloe">Chloe</option>
+                                        <option value="Nahuel">Nahuel</option>
+                                        <option value="Marcelo">Marcelo</option>
+                                        <option value="Adrian">Adrian</option>
+                                        <option value="Norela">Norela</option>
+                                    </select>
+                                    <button type="button" class="btn btn-danger btn-remove-persona">
+                                        <i class="fas fa-minus"></i>
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm mt-2" id="btn-add-persona">
+                            <i class="fas fa-plus"></i> Agregar otra persona
+                        </button>
+                    </div>
+
+                    <!-- Campo oculto para enviar las personas -->
+                    <input type="hidden" name="resuelto_por" id="resuelto_por_hidden">
+
+                    <!-- Información adicional -->
+                    <div class="alert alert-info">
+                        <small>
+                            <strong>Creado:</strong> {{ reporte[6] }}
+                        </small>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-warning text-dark">
+                            <i class="fas fa-save"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Comentarios/Notas -->
+    <div class="col-md-5">
+        <div class="card shadow-lg">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-comments"></i> Comentarios y Notas
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Formulario para agregar comentario -->
+                <form method="POST" action="{{ url_for('agregar_comentario', reporte_id=reporte[0]) }}" class="mb-4">
+                    <div class="mb-2">
+                        <label for="autor" class="form-label"><small>Tu nombre:</small></label>
+                        <input type="text" name="autor" id="autor" class="form-control form-control-sm" placeholder="Ej: Juan Pérez" required>
+                    </div>
+                    <div class="mb-2">
+                        <label for="comentario" class="form-label"><small>Comentario:</small></label>
+                        <textarea name="comentario" id="comentario" class="form-control form-control-sm" rows="2" placeholder="Agrega una nota o comentario..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-info btn-sm w-100">
+                        <i class="fas fa-plus"></i> Agregar Comentario
+                    </button>
+                </form>
+
+                <hr>
+
+                <!-- Lista de comentarios -->
+                <div style="max-height: 500px; overflow-y: auto;">
+                    {% if comentarios %}
+                        {% for c in comentarios %}
+                        <div class="card comentario-card mb-2">
+                            <div class="card-body p-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <small class="text-muted">
+                                            <i class="fas fa-user"></i> <strong>{{ c[3] }}</strong> - {{ c[4] }}
+                                        </small>
+                                        <p class="mb-0 mt-1"><small>{{ c[2] }}</small></p>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('eliminar_comentario', comentario_id=c[0], reporte_id=reporte[0]) }}" 
+                                          onsubmit="return confirm('¿Eliminar este comentario?');" 
+                                          style="margin-left: 10px;">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Eliminar comentario">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p><small>No hay comentarios aún</small></p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js_libs %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const oficinasPorPiso = {{ oficinas_json | safe }};
+
+    function actualizarOficinas(piso) {
+        const oficinas = oficinasPorPiso[piso] || [];
+        const $oficina = $('#oficina');
+        const oficinaActual = $oficina.val();
+        
+        $oficina.empty();
+        
+        if(oficinas.length === 0) {
+            $oficina.append('<option value="" disabled>No hay oficinas para este piso</option>');
+        } else {
+            oficinas.forEach(ofi => {
+                const selected = ofi === oficinaActual ? 'selected' : '';
+                $oficina.append(`<option value="${ofi}" ${selected}>${ofi}</option>`);
+            });
+        }
+        $oficina.trigger('change');
+    }
+
+    $(document).ready(function() {
+        $('#piso').select2({
+            placeholder: "Seleccioná un piso",
+            allowClear: false
+        });
+        
+        $('#oficina').select2({
+            placeholder: "Seleccioná una oficina",
+            allowClear: false
+        });
+
+        // Inicializar Select2 en personas
+        $('.persona-select').each(function() {
+            $(this).select2({
+                placeholder: "Seleccionar persona",
+                allowClear: true,
+                width: '100%'
+            });
+        });
+
+        // Cargar oficinas del piso actual
+        actualizarOficinas($('#piso').val());
+
+        $('#piso').on('change', function() {
+            actualizarOficinas($(this).val());
+        });
+
+        // Mostrar/ocultar sección resuelto por según estado
+        $('#estado').on('change', function() {
+            if ($(this).val() === 'resuelto') {
+                $('#resuelto-section').slideDown();
+            } else {
+                $('#resuelto-section').slideUp();
+            }
+        });
+
+        // Agregar persona
+        $('#btn-add-persona').on('click', function() {
+            const nuevaFila = `
+                <div class="persona-row">
+                    <select class="form-select persona-select" data-placeholder="Seleccionar persona">
+                        <option value=""></option>
+                        <option value="Tomas">Tomas</option>
+                        <option value="Chloe">Chloe</option>
+                        <option value="Nahuel">Nahuel</option>
+                        <option value="Marcelo">Marcelo</option>
+                        <option value="Adrian">Adrian</option>
+                        <option value="Norela">Norela</option>
+                    </select>
+                    <button type="button" class="btn btn-danger btn-remove-persona">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </div>
+            `;
+            $('#personas-container').append(nuevaFila);
+            const $nuevoSelect = $('#personas-container .persona-row:last-child .persona-select');
+            $nuevoSelect.select2({
+                placeholder: "Seleccionar persona",
+                allowClear: true,
+                width: '100%'
+            });
+        });
+
+        // Eliminar persona
+        $(document).on('click', '.btn-remove-persona', function() {
+            const $container = $('#personas-container');
+            if ($container.find('.persona-row').length > 1) {
+                $(this).closest('.persona-row').remove();
+            }
+        });
+
+        // Antes de enviar el formulario
+        $('#formEditar').on('submit', function(e) {
+            const estado = $('#estado').val();
+            if (estado === 'resuelto') {
+                const personas = [];
+                $('.persona-select').each(function() {
+                    const valor = $(this).val();
+                    if (valor && valor.trim() !== '') {
+                        personas.push(valor);
+                    }
+                });
+                
+                if (personas.length === 0) {
+                    e.preventDefault();
+                    alert('Debes seleccionar al menos una persona que resolvió el reporte');
+                    return false;
+                }
+                
+                $('#resuelto_por_hidden').val(personas.join(', '));
+            } else {
+                $('#resuelto_por_hidden').val('');
+            }
+        });
+    });
+</script>
+{% endblock %}
