@@ -70,6 +70,27 @@
                         <textarea name="razon" id="razon" class="form-control" rows="3" placeholder="Describe el problema..." required></textarea>
                     </div>
 
+                    <!-- Fecha del reporte -->
+                    <div class="mb-3">
+                        <label class="form-label">Fecha del reporte</label>
+                        <div class="btn-group w-100 mb-2" role="group" id="fecha-opciones">
+                            <input type="radio" class="btn-check" name="fecha_opcion" id="fecha_hoy" value="hoy" checked>
+                            <label class="btn btn-outline-primary" for="fecha_hoy">HOY</label>
+                            
+                            <input type="radio" class="btn-check" name="fecha_opcion" id="fecha_ayer" value="ayer">
+                            <label class="btn btn-outline-primary" for="fecha_ayer">AYER</label>
+                            
+                            <input type="radio" class="btn-check" name="fecha_opcion" id="fecha_otra" value="otra">
+                            <label class="btn btn-outline-primary" for="fecha_otra">OTRA FECHA</label>
+                        </div>
+                        <div id="calendario-container" style="display: none;">
+                            <input type="date" class="form-control" id="fecha_custom" name="fecha_custom">
+                        </div>
+                    </div>
+
+                    <!-- Campo oculto para la fecha final -->
+                    <input type="hidden" name="fecha_reporte" id="fecha_reporte_hidden">
+
                     <!-- Estado -->
                     <div class="mb-3">
                         <label for="estado" class="form-label">Estado</label>
@@ -226,7 +247,57 @@
             eliminarPersona(this);
         });
 
+        // Manejo de la fecha del reporte
+        $('input[name="fecha_opcion"]').on('change', function() {
+            if ($(this).val() === 'otra') {
+                $('#calendario-container').slideDown();
+            } else {
+                $('#calendario-container').slideUp();
+            }
+        });
+
+        // Establecer fecha máxima en el calendario (no puede ser mayor a hoy)
+        const hoy = new Date();
+        const fechaMax = hoy.toISOString().split('T')[0];
+        $('#fecha_custom').attr('max', fechaMax);
+
         $('#formReporte').on('submit', function(e) {
+            // PRIMERO: Calcular y establecer la fecha del reporte
+            const fechaOpcion = $('input[name="fecha_opcion"]:checked').val();
+            let fechaFinal;
+            
+            // Obtener fecha actual
+            const ahora = new Date();
+            
+            if (fechaOpcion === 'hoy') {
+                const dia = String(ahora.getDate()).padStart(2, '0');
+                const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+                const anio = String(ahora.getFullYear()).slice(-2);
+                fechaFinal = `${dia}/${mes}/${anio}`;
+            } else if (fechaOpcion === 'ayer') {
+                const ayer = new Date(ahora);
+                ayer.setDate(ayer.getDate() - 1);
+                const dia = String(ayer.getDate()).padStart(2, '0');
+                const mes = String(ayer.getMonth() + 1).padStart(2, '0');
+                const anio = String(ayer.getFullYear()).slice(-2);
+                fechaFinal = `${dia}/${mes}/${anio}`;
+            } else if (fechaOpcion === 'otra') {
+                const fechaCustom = $('#fecha_custom').val();
+                if (!fechaCustom) {
+                    e.preventDefault();
+                    alert('Por favor selecciona una fecha del calendario');
+                    return false;
+                }
+                // Parsear la fecha en formato YYYY-MM-DD
+                const [anioCompleto, mesStr, diaStr] = fechaCustom.split('-');
+                const anio = anioCompleto.slice(-2);
+                fechaFinal = `${diaStr}/${mesStr}/${anio}`;
+            }
+            
+            // Establecer el valor de la fecha
+            $('#fecha_reporte_hidden').val(fechaFinal);
+
+            // SEGUNDO: Validar personas si es resuelto
             const estado = $('#estado').val();
             if (estado === 'resuelto') {
                 const personasSeleccionadas = recopilarPersonas();
@@ -239,6 +310,8 @@
             } else {
                 $('#resuelto_por_hidden').val('');
             }
+            
+            // El formulario se enviará normalmente después de esto
         });
     });
 </script>
